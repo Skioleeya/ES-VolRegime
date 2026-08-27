@@ -82,7 +82,7 @@ def _qualification_request(contract: QualifiedContract):
     from src.historical.models import HistoricalRequest
 
     now = datetime.now(timezone.utc)
-    return HistoricalRequest(contract, now, now, now, now, "300 S")
+    return HistoricalRequest(contract, now, now, now, now, f"{DEFAULT_SESSION_CONFIG.bar_seconds} S")
 
 
 def _refresh_coverage(repository, contract, bar) -> None:

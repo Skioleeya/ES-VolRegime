@@ -64,7 +64,7 @@ def next_poll_at(server_now: datetime, delay: timedelta = POLL_DELAY, config: Se
 
 
 def build_latest_bar_request(contract: QualifiedContract, server_now: datetime, config: SessionConfig = DEFAULT_SESSION_CONFIG) -> HistoricalRequest:
-    """Build a 300-second request ending at the latest completed boundary."""
+    """Build a one-configured-bar request ending at the latest boundary."""
     boundary = completed_boundary(server_now, config)
     target_start = boundary - timedelta(minutes=config.bar_minutes)
     return HistoricalRequest(

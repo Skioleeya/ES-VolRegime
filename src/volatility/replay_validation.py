@@ -4,6 +4,7 @@ from datetime import datetime, timedelta, timezone
 
 from .engine import RegimeSnapshot, build_regime_snapshots
 from src.historical.models import HistoricalBar
+from src.config import DEFAULT_SESSION_CONFIG, SessionConfig
 
 UTC = timezone.utc
 
@@ -11,6 +12,7 @@ UTC = timezone.utc
 def validate_prefix_invariance(
     bars: tuple[HistoricalBar, ...],
     as_of_utc: datetime,
+    session_config: SessionConfig = DEFAULT_SESSION_CONFIG,
 ) -> int:
     """Return checked snapshot count or raise if future bars alter a prefix."""
     if as_of_utc.tzinfo is None or as_of_utc.utcoffset() is None:
@@ -19,7 +21,7 @@ def validate_prefix_invariance(
     ordered = tuple(sorted(bars, key=lambda bar: bar.bar_start_utc))
     prefix_bars = tuple(
         bar for bar in ordered
-        if bar.bar_start_utc + timedelta(minutes=5) <= as_of_utc
+        if bar.bar_start_utc + timedelta(minutes=session_config.bar_minutes) <= as_of_utc
     )
     full = build_regime_snapshots(ordered)
     prefix = build_regime_snapshots(prefix_bars)

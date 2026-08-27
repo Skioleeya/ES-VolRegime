@@ -9,6 +9,7 @@ from ibapi.contract import Contract, ContractDetails
 from ibapi.wrapper import EWrapper
 
 from .config import IbkrConfig
+from src.config import DEFAULT_SESSION_CONFIG
 
 
 class IbkrProbe(EWrapper, EClient):
@@ -87,7 +88,7 @@ class IbkrProbe(EWrapper, EClient):
         return self.contracts[0].contract
 
     def _request_history(self, contract: Contract) -> None:
-        self.reqHistoricalData(self._request_id(), contract, "", "2 D", "5 mins", "TRADES", 1, 2, False, [])
+        self.reqHistoricalData(self._request_id(), contract, "", "2 D", DEFAULT_SESSION_CONFIG.bar_size, "TRADES", 1, 2, False, [])
         self._require(self.history_event, "historical ES 5m data", self.config.timeout_seconds)
         if self.history_count == 0:
             raise RuntimeError("Historical request completed without bars")
