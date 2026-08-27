@@ -9,6 +9,8 @@
    qualified active contract month, for example `ES_LAST_TRADE_DATE=202609`.
 4. Do not run another TWS/Gateway session for the same account from a second
    IP. IBKR may reject the request with error 162.
+5. Keep `config/session.toml` under version control as the sole research-session
+   configuration source. Missing or invalid values stop the process at startup.
 
 ## One-Cycle Acceptance
 

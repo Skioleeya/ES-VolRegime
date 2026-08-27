@@ -1,0 +1,7 @@
+timezone = "America/New_York"
+session_start = "18:00"
+overnight_end = "04:00"
+premarket_end = "09:30"
+session_end = "12:00"
+bar_minutes = 5
+minimum_history_samples = 20
