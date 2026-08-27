@@ -53,6 +53,7 @@ def main() -> int:
         poller = LatestBarPoller(client, collector, contract, args.timeout_seconds)
         _recover_current_session(client, repository, collector, contract, args.timeout_seconds)
         if args.once:
+            _require_active_session(client, args.timeout_seconds)
             bar = retry_operation(poller.poll_once, attempts=args.retries)
             repository.save_bars((bar,))
             _refresh_coverage(repository, contract, bar)
@@ -99,5 +100,12 @@ def _recover_current_session(client, repository, collector, contract, timeout_se
         return
     result = recover_session(session_date, contract, repository, collector, server_now)
     print(f"RECOVERY: session_date={result.session_date} requested={result.requested_bars} recovered={result.recovered_bars} remaining={result.remaining_bars}", flush=True)
+
+
+def _require_active_session(client, timeout_seconds: float) -> None:
+    epoch = client.request_server_time(timeout_seconds)
+    server_now = datetime.fromtimestamp(epoch, timezone.utc)
+    if active_session_date(server_now) is None:
+        raise RuntimeError("--once requires an active CME research session")
 if __name__ == "__main__":
     raise SystemExit(main())
