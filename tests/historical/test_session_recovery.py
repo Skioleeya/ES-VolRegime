@@ -55,6 +55,8 @@ def test_contract_selection_is_persisted_per_session(tmp_path):
     ).fetchone()
     assert row == (1, "ESU6", "202609")
     assert repository.load_contract_selection(SESSION_DATE.isoformat()) == CONTRACT
+    repository.save_contract_selection(SESSION_DATE.isoformat(), CONTRACT, selected_at)
+    assert repository._connection.execute("SELECT COUNT(*) FROM contract_selections").fetchone()[0] == 1
     repository.close()
 
 
