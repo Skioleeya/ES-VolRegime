@@ -5,6 +5,7 @@ from .normalizer import normalize_completed_bar
 from .repository import HistoricalRepository
 from .request_plan import build_request_plan
 from .polling import LatestBarPoller, build_latest_bar_request, completed_boundary, in_research_window, next_poll_at, next_window_start
+from .coverage import expected_bar_starts, missing_bar_starts, session_window
 
 __all__ = [
     "HistoricalBar",
@@ -19,4 +20,7 @@ __all__ = [
     "next_poll_at",
     "in_research_window",
     "next_window_start",
+    "session_window",
+    "expected_bar_starts",
+    "missing_bar_starts",
 ]

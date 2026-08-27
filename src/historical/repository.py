@@ -116,6 +116,24 @@ class HistoricalRepository:
     def request_count(self) -> int:
         return self._connection.execute("SELECT COUNT(*) FROM historical_requests").fetchone()[0]
 
+    def save_coverage(self, session_date: str, expected_bars: int, actual_bars: int, missing_bars: int, status: str) -> None:
+        """Upsert one auditable research-session coverage result."""
+        with self._connection:
+            self._connection.execute(
+                """CREATE TABLE IF NOT EXISTS session_coverage (
+                    session_date TEXT PRIMARY KEY, expected_bars INTEGER NOT NULL,
+                    actual_bars INTEGER NOT NULL, missing_bars INTEGER NOT NULL,
+                    status TEXT NOT NULL, updated_at_utc TEXT NOT NULL
+                )"""
+            )
+            self._connection.execute(
+                """INSERT INTO session_coverage VALUES (?, ?, ?, ?, ?, ?)
+                ON CONFLICT(session_date) DO UPDATE SET expected_bars=excluded.expected_bars,
+                actual_bars=excluded.actual_bars, missing_bars=excluded.missing_bars,
+                status=excluded.status, updated_at_utc=excluded.updated_at_utc""",
+                (session_date, expected_bars, actual_bars, missing_bars, status, datetime.now(timezone.utc).isoformat()),
+            )
+
     def _create_schema(self) -> None:
         self._connection.execute(
             """
