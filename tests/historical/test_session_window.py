@@ -14,9 +14,14 @@ def test_window_uses_eastern_session_boundaries():
 
 def test_next_window_start_is_timezone_aware():
     result = next_window_start(datetime.fromisoformat("2026-08-27T17:00:00+00:00"))
-    assert result == datetime.fromisoformat("2026-08-28T22:00:00+00:00")
+    assert result == datetime.fromisoformat("2026-08-27T22:00:00+00:00")
     assert result.tzinfo is UTC
 
 
 def test_active_session_excludes_weekend_evening():
     assert active_session_date(datetime.fromisoformat("2026-08-29T22:30:00+00:00")) is None
+
+
+def test_next_window_start_skips_to_sunday_before_monday_session():
+    result = next_window_start(datetime.fromisoformat("2026-08-28T17:00:00+00:00"))
+    assert result == datetime.fromisoformat("2026-08-30T22:00:00+00:00")

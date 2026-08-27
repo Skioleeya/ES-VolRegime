@@ -40,11 +40,12 @@ def next_window_start(server_now: datetime, config: SessionConfig = DEFAULT_SESS
     _ensure_utc(server_now)
     local = server_now.astimezone(config.timezone)
     clock = local.timetz().replace(tzinfo=None)
-    target_date = local.date() if clock < config.session_end else local.date() + timedelta(days=1)
-    target_date = next_trading_session(target_date)
-    target = datetime.combine(target_date, config.session_start, config.timezone)
+    session_date = local.date() if clock < config.session_end else local.date() + timedelta(days=1)
+    session_date = next_trading_session(session_date)
+    target = datetime.combine(session_date - timedelta(days=1), config.session_start, config.timezone)
     if target.astimezone(UTC) <= server_now:
-        target = datetime.combine(target_date + timedelta(days=1), config.session_start, config.timezone)
+        session_date = next_trading_session(session_date + timedelta(days=1))
+        target = datetime.combine(session_date - timedelta(days=1), config.session_start, config.timezone)
     return target.astimezone(UTC)
 
 
