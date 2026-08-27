@@ -37,6 +37,15 @@ def test_recovery_fills_missing_bar_and_marks_coverage_complete(tmp_path):
     repository.close()
 
 
+def test_coverage_is_partitioned_by_contract(tmp_path):
+    repository = HistoricalRepository(tmp_path / "history.sqlite")
+    other = QualifiedContract(2, "ESZ6", "202612")
+    repository.save_coverage(CONTRACT, SESSION_DATE.isoformat(), 216, 216, 0, "COMPLETE")
+    repository.save_coverage(other, SESSION_DATE.isoformat(), 216, 100, 116, "DEGRADED")
+    assert repository._connection.execute("SELECT COUNT(*) FROM session_coverage").fetchone()[0] == 2
+    repository.close()
+
+
 def _bar(start):
     return HistoricalBar(
         CONTRACT, start, start.astimezone(ET), Decimal("6000"), Decimal("6001"),

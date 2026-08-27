@@ -117,22 +117,17 @@ class HistoricalRepository:
     def request_count(self) -> int:
         return self._connection.execute("SELECT COUNT(*) FROM historical_requests").fetchone()[0]
 
-    def save_coverage(self, session_date: str, expected_bars: int, actual_bars: int, missing_bars: int, status: str) -> None:
+    def save_coverage(self, contract: QualifiedContract, session_date: str, expected_bars: int, actual_bars: int, missing_bars: int, status: str) -> None:
         """Upsert one auditable research-session coverage result."""
+        self._ensure_coverage_schema()
         with self._connection:
             self._connection.execute(
-                """CREATE TABLE IF NOT EXISTS session_coverage (
-                    session_date TEXT PRIMARY KEY, expected_bars INTEGER NOT NULL,
-                    actual_bars INTEGER NOT NULL, missing_bars INTEGER NOT NULL,
-                    status TEXT NOT NULL, updated_at_utc TEXT NOT NULL
-                )"""
-            )
-            self._connection.execute(
-                """INSERT INTO session_coverage VALUES (?, ?, ?, ?, ?, ?)
-                ON CONFLICT(session_date) DO UPDATE SET expected_bars=excluded.expected_bars,
+                """INSERT INTO session_coverage VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(con_id, local_symbol, contract_month, session_date) DO UPDATE SET expected_bars=excluded.expected_bars,
                 actual_bars=excluded.actual_bars, missing_bars=excluded.missing_bars,
                 status=excluded.status, updated_at_utc=excluded.updated_at_utc""",
-                (session_date, expected_bars, actual_bars, missing_bars, status, datetime.now(timezone.utc).isoformat()),
+                (contract.con_id, contract.local_symbol, contract.contract_month, session_date,
+                 expected_bars, actual_bars, missing_bars, status, datetime.now(timezone.utc).isoformat()),
             )
 
     def refresh_coverage(self, session_date: date, contract: QualifiedContract) -> tuple[int, int]:
@@ -148,8 +143,21 @@ class HistoricalRepository:
         actual = tuple(datetime.fromisoformat(row[0]).astimezone(timezone.utc) for row in rows)
         missing = missing_bar_starts(session_date, actual)
         status = "COMPLETE" if not missing else "DEGRADED"
-        self.save_coverage(session_date.isoformat(), len(expected), len(actual), len(missing), status)
+        self.save_coverage(contract, session_date.isoformat(), len(expected), len(actual), len(missing), status)
         return len(actual), len(missing)
+
+    def _ensure_coverage_schema(self) -> None:
+        columns = self._connection.execute("PRAGMA table_info(session_coverage)").fetchall()
+        if columns and "con_id" not in {column[1] for column in columns}:
+            raise ValueError("legacy session_coverage schema lacks contract identity; create a new database or migrate explicitly")
+        self._connection.execute(
+            """CREATE TABLE IF NOT EXISTS session_coverage (
+                con_id INTEGER NOT NULL, local_symbol TEXT NOT NULL, contract_month TEXT NOT NULL,
+                session_date TEXT NOT NULL, expected_bars INTEGER NOT NULL, actual_bars INTEGER NOT NULL,
+                missing_bars INTEGER NOT NULL, status TEXT NOT NULL, updated_at_utc TEXT NOT NULL,
+                PRIMARY KEY (con_id, local_symbol, contract_month, session_date)
+            )"""
+        )
     def _create_schema(self) -> None:
         self._connection.execute(
             """

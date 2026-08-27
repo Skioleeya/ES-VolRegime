@@ -42,7 +42,7 @@ def recover_session(
         recovered += len(target)
     actual = _existing_starts(repository, contract, expected)
     remaining = len(missing_bar_starts(session_date, actual))
-    repository.save_coverage(session_date.isoformat(), len(expected), len(actual), remaining, "COMPLETE" if remaining == 0 else "DEGRADED")
+    repository.save_coverage(contract, session_date.isoformat(), len(expected), len(actual), remaining, "COMPLETE" if remaining == 0 else "DEGRADED")
     return RecoveryResult(session_date, len(missing), recovered, remaining)
 
 
