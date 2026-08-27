@@ -2,11 +2,12 @@
 
 from pathlib import Path
 import sqlite3
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from decimal import Decimal
 from zoneinfo import ZoneInfo
 
 from .models import HistoricalBar, QualifiedContract
+from .coverage import expected_bar_starts, missing_bar_starts, is_trading_session
 
 
 class HistoricalRepository:
@@ -134,6 +135,21 @@ class HistoricalRepository:
                 (session_date, expected_bars, actual_bars, missing_bars, status, datetime.now(timezone.utc).isoformat()),
             )
 
+    def refresh_coverage(self, session_date: date, contract: QualifiedContract) -> tuple[int, int]:
+        """Recompute and persist coverage for one CME session and contract."""
+        if not is_trading_session(session_date):
+            raise ValueError(f"{session_date} is not a CME Equity session")
+        expected = expected_bar_starts(session_date)
+        start, end = expected[0], expected[-1] + (expected[1] - expected[0])
+        rows = self._connection.execute(
+            "SELECT bar_start_utc FROM historical_bars WHERE con_id=? AND local_symbol=? AND contract_month=? AND bar_start_utc>=? AND bar_start_utc<? AND is_complete=1",
+            (contract.con_id, contract.local_symbol, contract.contract_month, start.isoformat(), end.isoformat()),
+        ).fetchall()
+        actual = tuple(datetime.fromisoformat(row[0]).astimezone(timezone.utc) for row in rows)
+        missing = missing_bar_starts(session_date, actual)
+        status = "COMPLETE" if not missing else "DEGRADED"
+        self.save_coverage(session_date.isoformat(), len(expected), len(actual), len(missing), status)
+        return len(actual), len(missing)
     def _create_schema(self) -> None:
         self._connection.execute(
             """

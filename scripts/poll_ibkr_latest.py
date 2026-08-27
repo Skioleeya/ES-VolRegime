@@ -5,6 +5,7 @@ import argparse
 from pathlib import Path
 import sys
 import threading
+from datetime import timedelta, time
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
@@ -49,6 +50,7 @@ def main() -> int:
         if args.once:
             bar = poller.poll_once()
             repository.save_bars((bar,))
+            _refresh_coverage(repository, contract, bar)
             print(f"POLL RESULT: PASS bar_start_utc={bar.bar_start_utc.isoformat()} close={bar.close}")
             return 0
         poll_count = 0
@@ -56,6 +58,7 @@ def main() -> int:
             poller.wait_for_next_poll()
             bar = poller.poll_once()
             repository.save_bars((bar,))
+            _refresh_coverage(repository, contract, bar)
             poll_count += 1
             print(f"POLL RESULT: PASS bar_start_utc={bar.bar_start_utc.isoformat()} close={bar.close}", flush=True)
         return 0
@@ -74,6 +77,13 @@ def _qualification_request(contract: QualifiedContract):
 
     now = datetime.now(timezone.utc)
     return HistoricalRequest(contract, now, now, now, now, "300 S")
+
+
+def _refresh_coverage(repository, contract, bar) -> None:
+    local = bar.bar_start_et
+    session_date = local.date() + timedelta(days=1) if local.timetz().replace(tzinfo=None) >= time(18) else local.date()
+    actual, missing = repository.refresh_coverage(session_date, contract)
+    print(f"COVERAGE: session_date={session_date} actual={actual} missing={missing}", flush=True)
 
 
 if __name__ == "__main__":
