@@ -25,7 +25,7 @@ def test_metrics_reset_between_overnight_and_cash():
     assert metrics[0].realized_variance == Decimal("0")
     assert metrics[2].realized_variance == Decimal("0")
     assert metrics[1].range_value == Decimal("13")
-    assert metrics[1].elapsed_minutes == 200
+    assert metrics[1].elapsed_minutes == 335
 
 
 def test_metrics_exclude_bar_after_cash_research_window():

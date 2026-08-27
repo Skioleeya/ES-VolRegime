@@ -5,13 +5,14 @@ from datetime import datetime, time, timedelta
 from zoneinfo import ZoneInfo
 
 from .models import HistoricalBar
+from src.config import DEFAULT_SESSION_CONFIG, SessionConfig
 
 ET = ZoneInfo("America/New_York")
 FIVE_MINUTES = timedelta(minutes=5)
-OVERNIGHT_START = time(20, 15)
-PREMARKET_START = time(4, 0)
+OVERNIGHT_START = DEFAULT_SESSION_CONFIG.session_start
+PREMARKET_START = DEFAULT_SESSION_CONFIG.overnight_end
 CASH_START = time(9, 30)
-CASH_END = time(12, 0)
+CASH_END = DEFAULT_SESSION_CONFIG.session_end
 
 
 @dataclass(frozen=True)
@@ -53,14 +54,14 @@ def build_quality_report(
     )
 
 
-def research_phase(timestamp_et: datetime) -> str | None:
+def research_phase(timestamp_et: datetime, session_config: SessionConfig = DEFAULT_SESSION_CONFIG) -> str | None:
     """Return the whitepaper phase for a bar, or None outside research hours."""
     local_time = timestamp_et.astimezone(ET).time()
-    if local_time >= OVERNIGHT_START or local_time < PREMARKET_START:
+    if local_time >= session_config.session_start or local_time < session_config.overnight_end:
         return "OVERNIGHT"
-    if PREMARKET_START <= local_time < CASH_START:
+    if session_config.overnight_end <= local_time < session_config.premarket_end:
         return "PRE-MARKET"
-    if CASH_START <= local_time < CASH_END:
+    if session_config.premarket_end <= local_time < session_config.session_end:
         return "CASH"
     return None
 

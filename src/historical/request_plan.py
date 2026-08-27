@@ -6,6 +6,7 @@ from zoneinfo import ZoneInfo
 import pandas_market_calendars as market_calendars
 
 from .models import HistoricalRequest, QualifiedContract, ensure_aware, ensure_date_order
+from src.config import DEFAULT_SESSION_CONFIG, SessionConfig
 
 ET = ZoneInfo("America/New_York")
 UTC = timezone.utc
@@ -16,12 +17,13 @@ def build_request_plan(
     start_date: date,
     end_date: date,
     trading_days_per_request: int = 30,
+    session_config: SessionConfig = DEFAULT_SESSION_CONFIG,
 ) -> list[HistoricalRequest]:
     """Build non-overlapping requests for CME Equity session labels.
 
     The date range is half-open: ``start_date`` is included and ``end_date``
     is excluded. Session labels come from the third-party CME calendar, while
-    request boundaries use the project's 20:15 ET to 12:00 ET research span.
+        request boundaries use the configured research span.
     """
     ensure_date_order(start_date, end_date)
     if trading_days_per_request < 1:
@@ -32,7 +34,7 @@ def build_request_plan(
         raise ValueError("requested range contains no CME trading sessions")
 
     return [
-        _make_request(contract, chunk[0], chunk[-1])
+        _make_request(contract, chunk[0], chunk[-1], session_config)
         for chunk in _chunks(session_dates, trading_days_per_request)
     ]
 
@@ -47,9 +49,9 @@ def _chunks(values: list[date], size: int) -> list[list[date]]:
     return [values[index : index + size] for index in range(0, len(values), size)]
 
 
-def _make_request(contract: QualifiedContract, first: date, last: date) -> HistoricalRequest:
-    start_et = datetime.combine(first - timedelta(days=1), time(20, 15), ET)
-    end_et = datetime.combine(last, time(12, 0), ET)
+def _make_request(contract: QualifiedContract, first: date, last: date, session_config: SessionConfig = DEFAULT_SESSION_CONFIG) -> HistoricalRequest:
+    start_et = datetime.combine(first - timedelta(days=1), session_config.session_start, session_config.timezone)
+    end_et = datetime.combine(last, session_config.session_end, session_config.timezone)
     start_utc = start_et.astimezone(UTC)
     end_utc = end_et.astimezone(UTC)
     ensure_aware(start_utc, "start_utc")
@@ -65,4 +67,3 @@ def _make_request(contract: QualifiedContract, first: date, last: date) -> Histo
         end_et=end_et,
         duration_str=f"{duration_days} D",
     )
-

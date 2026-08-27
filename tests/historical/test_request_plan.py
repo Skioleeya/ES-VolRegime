@@ -16,7 +16,7 @@ def test_plan_uses_cme_sessions_and_splits_by_trading_days():
         date(2026, 8, 30),
         date(2026, 9, 6),
     ]
-    assert plan[0].start_et.hour == 20
+    assert plan[0].start_et.hour == 18
     assert plan[0].end_et.hour == 12
     assert plan[0].start_utc.tzinfo is not None
     assert plan[0].use_rth == 0

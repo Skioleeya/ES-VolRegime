@@ -9,10 +9,31 @@ from .collector import HistoricalCollector
 from .errors import HistoricalError
 from .models import HistoricalBar, HistoricalRequest, QualifiedContract
 from .normalizer import normalize_completed_bar
+from src.config import DEFAULT_SESSION_CONFIG, SessionConfig
 
 UTC = timezone.utc
 BAR_LENGTH = timedelta(minutes=5)
 POLL_DELAY = timedelta(seconds=7)
+
+
+def in_research_window(server_now: datetime, config: SessionConfig = DEFAULT_SESSION_CONFIG) -> bool:
+    """Return whether an instant is inside the configured 18:00-12:00 window."""
+    _ensure_utc(server_now)
+    local = server_now.astimezone(config.timezone)
+    clock = local.timetz().replace(tzinfo=None)
+    return clock >= config.session_start or clock < config.session_end
+
+
+def next_window_start(server_now: datetime, config: SessionConfig = DEFAULT_SESSION_CONFIG) -> datetime:
+    """Return the next configured evening session start in UTC."""
+    _ensure_utc(server_now)
+    local = server_now.astimezone(config.timezone)
+    clock = local.timetz().replace(tzinfo=None)
+    target_date = local.date() if clock < config.session_end else local.date() + timedelta(days=1)
+    target = datetime.combine(target_date, config.session_start, config.timezone)
+    if target.astimezone(UTC) <= server_now:
+        target = datetime.combine(target_date + timedelta(days=1), config.session_start, config.timezone)
+    return target.astimezone(UTC)
 
 
 def completed_boundary(server_now: datetime) -> datetime:
@@ -66,11 +87,14 @@ class LatestBarPoller:
             raise HistoricalError("IBKR did not return exactly one target completed bar")
         return target[0]
 
-    def wait_for_next_poll(self, sleep: callable = time.sleep) -> datetime:
+    def wait_for_next_poll(self, sleep: callable = time.sleep, config: SessionConfig = DEFAULT_SESSION_CONFIG) -> datetime:
         """Wait using a fresh server-time calibration and return the poll time."""
         epoch = self.client.request_server_time(self.timeout_seconds)
         server_now = datetime.fromtimestamp(epoch, UTC)
-        poll_at = next_poll_at(server_now)
+        if not in_research_window(server_now, config):
+            poll_at = next_window_start(server_now, config) + POLL_DELAY
+        else:
+            poll_at = next_poll_at(server_now)
         sleep(max(0.0, (poll_at - server_now).total_seconds()))
         return poll_at
 

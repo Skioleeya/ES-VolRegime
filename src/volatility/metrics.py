@@ -6,6 +6,7 @@ import math
 from zoneinfo import ZoneInfo
 
 from src.historical.models import HistoricalBar
+from src.config import DEFAULT_SESSION_CONFIG, SessionConfig
 
 from .models import PhaseMetric, ResearchPhase
 
@@ -14,7 +15,7 @@ ZERO = Decimal("0")
 getcontext().prec = 28
 
 
-def calculate_phase_metrics(bars: tuple[HistoricalBar, ...]) -> tuple[PhaseMetric, ...]:
+def calculate_phase_metrics(bars: tuple[HistoricalBar, ...], session_config: SessionConfig = DEFAULT_SESSION_CONFIG) -> tuple[PhaseMetric, ...]:
     """Return cumulative RV metrics, resetting independently at each phase."""
     ordered = sorted(bars, key=lambda bar: bar.bar_start_utc)
     result: list[PhaseMetric] = []
@@ -24,7 +25,7 @@ def calculate_phase_metrics(bars: tuple[HistoricalBar, ...]) -> tuple[PhaseMetri
     phase_high: Decimal | None = None
     phase_low: Decimal | None = None
     for bar in ordered:
-        classification = _classify(bar.bar_start_et)
+        classification = _classify(bar.bar_start_et, session_config)
         if classification is None:
             continue
         phase, session_date, elapsed = classification
@@ -45,20 +46,20 @@ def calculate_phase_metrics(bars: tuple[HistoricalBar, ...]) -> tuple[PhaseMetri
     return tuple(result)
 
 
-def _classify(value: datetime) -> tuple[ResearchPhase, date, int] | None:
+def _classify(value: datetime, config: SessionConfig = DEFAULT_SESSION_CONFIG) -> tuple[ResearchPhase, date, int] | None:
     local = value.astimezone(ET)
     clock = local.timetz().replace(tzinfo=None)
-    if clock >= time(20, 15):
-        start = datetime.combine(local.date(), time(20, 15), ET)
+    if clock >= config.session_start:
+        start = datetime.combine(local.date(), config.session_start, config.timezone)
         return ResearchPhase.OVERNIGHT, local.date() + timedelta(days=1), _elapsed(local, start)
     if clock < time(4):
-        start = datetime.combine(local.date() - timedelta(days=1), time(20, 15), ET)
+        start = datetime.combine(local.date() - timedelta(days=1), config.session_start, config.timezone)
         return ResearchPhase.OVERNIGHT, local.date(), _elapsed(local, start)
-    if clock < time(9, 30):
-        start = datetime.combine(local.date(), time(4), ET)
+    if clock < config.premarket_end:
+        start = datetime.combine(local.date(), config.overnight_end, config.timezone)
         return ResearchPhase.PREMARKET, local.date(), _elapsed(local, start)
-    if clock < time(12):
-        start = datetime.combine(local.date(), time(9, 30), ET)
+    if clock < config.session_end:
+        start = datetime.combine(local.date(), config.premarket_end, config.timezone)
         return ResearchPhase.CASH, local.date(), _elapsed(local, start)
     return None
 
