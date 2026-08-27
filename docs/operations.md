@@ -31,8 +31,16 @@ the previous completed bar, normalizes it to UTC, and upserts it into
 
 The process remains attached to the terminal and polls once per boundary. A
 Gateway error, timeout, missing bar, or contract mismatch exits explicitly;
-operator inspection is required. There is no automatic retry, local-clock
-substitution, Tick aggregation, or alternate data source.
+After finite retries are exhausted, the process exits explicitly. There is no
+local-clock substitution, Tick aggregation, or alternate data source.
+
+## Service Deployment
+
+Install `deploy/es-volregime-poller.service` as a systemd unit after setting
+the absolute repository path and service user. The unit restarts only when the
+poller exits. The poller itself retries an individual collection operation a
+finite number of times (`--retries`, default `3`) and then exits explicitly;
+it never silently changes data sources or time semantics.
 
 ## Analysis and Replay
 

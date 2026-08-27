@@ -13,6 +13,7 @@ from dotenv import load_dotenv
 
 from src.connectivity.config import IbkrConfig
 from src.historical import HistoricalRepository, QualifiedContract, recover_session
+from src.historical import retry_operation
 from src.historical.coverage import is_trading_session
 from src.historical.client import HistoricalClient
 from src.historical.collector import HistoricalCollector
@@ -25,6 +26,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--timeout-seconds", type=float, default=30.0)
     parser.add_argument("--once", action="store_true", help="poll once immediately after calibration")
     parser.add_argument("--max-polls", type=int, help="stop after this many boundary-aligned polls")
+    parser.add_argument("--retries", type=int, default=3, help="finite retries for collection operations")
     return parser.parse_args()
 
 
@@ -51,7 +53,7 @@ def main() -> int:
         poller = LatestBarPoller(client, collector, contract, args.timeout_seconds)
         _recover_current_session(client, repository, collector, contract, args.timeout_seconds)
         if args.once:
-            bar = poller.poll_once()
+            bar = retry_operation(poller.poll_once, attempts=args.retries)
             repository.save_bars((bar,))
             _refresh_coverage(repository, contract, bar)
             print(f"POLL RESULT: PASS bar_start_utc={bar.bar_start_utc.isoformat()} close={bar.close}")
@@ -59,7 +61,7 @@ def main() -> int:
         poll_count = 0
         while args.max_polls is None or poll_count < args.max_polls:
             poller.wait_for_next_poll()
-            bar = poller.poll_once()
+            bar = retry_operation(poller.poll_once, attempts=args.retries)
             repository.save_bars((bar,))
             _refresh_coverage(repository, contract, bar)
             poll_count += 1

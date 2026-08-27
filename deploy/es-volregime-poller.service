@@ -1,0 +1,19 @@
+[Unit]
+Description=ES VolRegime completed-bar poller
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/es-volregime
+EnvironmentFile=/opt/es-volregime/.env
+ExecStart=/opt/es-volregime/.venv/bin/python scripts/poll_ibkr_latest.py --timeout-seconds 30 --retries 3
+Restart=on-failure
+RestartSec=30
+User=esvolregime
+Group=esvolregime
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

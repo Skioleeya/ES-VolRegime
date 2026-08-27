@@ -8,6 +8,7 @@ from .polling import LatestBarPoller, build_latest_bar_request, completed_bounda
 from .coverage import expected_bar_starts, is_trading_session, missing_bar_starts, next_trading_session, session_window
 from .recovery import build_gap_requests
 from .session_recovery import RecoveryResult, recover_session
+from .retry import retry_operation
 
 __all__ = [
     "HistoricalBar",
@@ -30,4 +31,5 @@ __all__ = [
     "build_gap_requests",
     "RecoveryResult",
     "recover_session",
+    "retry_operation",
 ]
