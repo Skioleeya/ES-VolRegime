@@ -1,0 +1,8 @@
+task_id: session-window-18-00
+date: 2026-08-27
+status: implementation_complete_pending_live_acceptance
+scope: 18:00 ET to 12:00 ET ES session collection
+validation_commands:
+  - TMPDIR=/tmp ./.venv/bin/pytest tests -q
+  - git diff --check
+  - rg -n "20, 15|20:15|time\(18\)|time\(20" src scripts --glob '*.py'

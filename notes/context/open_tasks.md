@@ -1,4 +1,4 @@
 # Open Tasks
 - Archive: N/A
 ## Active
-- None.
+- Run live Paper IBKR Gateway and multi-day collection acceptance.

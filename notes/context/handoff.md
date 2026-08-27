@@ -1,5 +1,5 @@
 # Handoff Index
-- Latest session: 2026-08-27/initial-push
-- Current session handoff: notes/sessions/2026-08-27/initial-push/handoff.md
+- Latest session: 2026-08-27/session-window-18-00
+- Current session handoff: notes/sessions/2026-08-27/session-window-18-00/handoff.md
 - Archive: notes/context/archive/handoff_2026-08.md
-- Status: Initial repository pushed; workspace clean.
+- Status: 18:00 session collection implementation complete; live acceptance pending.
