@@ -24,5 +24,13 @@ def test_config_rejects_contract_placeholder(monkeypatch):
     monkeypatch.setenv("IBKR_PORT", "4002")
     monkeypatch.setenv("IBKR_CLIENT_ID", "901")
     monkeypatch.setenv("ES_LAST_TRADE_DATE", "REPLACE_WITH_ACTIVE_CONTRACT_MONTH")
-    with pytest.raises(ValueError, match="active ES contract month"):
+    with pytest.raises(ValueError, match="must not contain a placeholder"):
         IbkrConfig.from_environment()
+
+
+def test_config_allows_automatic_contract_selection(monkeypatch):
+    monkeypatch.setenv("IBKR_HOST", "127.0.0.1")
+    monkeypatch.setenv("IBKR_PORT", "4002")
+    monkeypatch.setenv("IBKR_CLIENT_ID", "901")
+    monkeypatch.delenv("ES_LAST_TRADE_DATE", raising=False)
+    assert IbkrConfig.from_environment().last_trade_date is None

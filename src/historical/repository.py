@@ -158,6 +158,37 @@ class HistoricalRepository:
                 PRIMARY KEY (con_id, local_symbol, contract_month, session_date)
             )"""
         )
+
+    def save_contract_selection(self, session_date: str, contract: QualifiedContract, selected_at_utc: datetime) -> None:
+        """Record the actual contract locked for a research session."""
+        with self._connection:
+            self._connection.execute(
+                """CREATE TABLE IF NOT EXISTS contract_selections (
+                    session_date TEXT PRIMARY KEY, con_id INTEGER NOT NULL, local_symbol TEXT NOT NULL,
+                    contract_month TEXT NOT NULL, selected_at_utc TEXT NOT NULL
+                )"""
+            )
+            self._connection.execute(
+                """INSERT INTO contract_selections VALUES (?, ?, ?, ?, ?)
+                ON CONFLICT(session_date) DO UPDATE SET con_id=excluded.con_id,
+                local_symbol=excluded.local_symbol, contract_month=excluded.contract_month,
+                selected_at_utc=excluded.selected_at_utc""",
+                (session_date, contract.con_id, contract.local_symbol, contract.contract_month, selected_at_utc.isoformat()),
+            )
+
+    def load_contract_selection(self, session_date: str) -> QualifiedContract | None:
+        """Return the contract previously locked for a session, if any."""
+        exists = self._connection.execute(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name='contract_selections'"
+        ).fetchone()
+        if exists is None:
+            return None
+        row = self._connection.execute(
+            "SELECT con_id, local_symbol, contract_month FROM contract_selections WHERE session_date=?", (session_date,)
+        ).fetchone()
+        if row is None:
+            return None
+        return QualifiedContract(row[0], row[1], row[2])
     def _create_schema(self) -> None:
         self._connection.execute(
             """

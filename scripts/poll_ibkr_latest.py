@@ -13,7 +13,7 @@ from dotenv import load_dotenv
 
 from src.connectivity.config import IbkrConfig
 from src.config import DEFAULT_SESSION_CONFIG
-from src.historical import HistoricalRepository, QualifiedContract, recover_session
+from src.historical import HistoricalRepository, QualifiedContract, recover_session, select_front_contract
 from src.historical import retry_operation
 from src.historical.client import HistoricalClient
 from src.historical.collector import HistoricalCollector
@@ -34,7 +34,6 @@ def main() -> int:
     args = parse_args()
     load_dotenv()
     config = IbkrConfig.from_environment()
-    requested = QualifiedContract(0, "", config.last_trade_date, config.symbol, config.exchange, config.currency)
     client = HistoricalClient()
     repository = HistoricalRepository(args.database)
     try:
@@ -42,26 +41,27 @@ def main() -> int:
         threading.Thread(target=client.run, daemon=True).start()
         if not client.connected_event.wait(args.timeout_seconds):
             raise TimeoutError("IBKR connection callback did not arrive")
-        actual = client.qualify(
-            _qualification_request(requested), 20_000, args.timeout_seconds
-        )
-        contract = QualifiedContract(
-            actual.conId, actual.localSymbol, config.last_trade_date,
-            config.symbol, config.exchange, config.currency,
-        )
         collector = HistoricalCollector(client)
+        contract = _select_live_contract(client, config, args.timeout_seconds)
         poller = LatestBarPoller(client, collector, contract, args.timeout_seconds)
-        _recover_current_session(client, repository, collector, contract, args.timeout_seconds)
         if args.once:
-            _require_active_session(client, args.timeout_seconds)
+            contract = _lock_session_contract(client, repository, config, args.timeout_seconds)
+            poller = LatestBarPoller(client, collector, contract, args.timeout_seconds)
+            _recover_current_session(client, repository, collector, contract, args.timeout_seconds)
             bar = retry_operation(poller.poll_once, attempts=args.retries)
             repository.save_bars((bar,))
             _refresh_coverage(repository, contract, bar)
             print(f"POLL RESULT: PASS bar_start_utc={bar.bar_start_utc.isoformat()} close={bar.close}")
             return 0
         poll_count = 0
+        locked_session = None
         while args.max_polls is None or poll_count < args.max_polls:
             poller.wait_for_next_poll()
+            contract, session_date = _lock_session_contract(client, repository, config, args.timeout_seconds, with_session=True)
+            if session_date != locked_session:
+                poller = LatestBarPoller(client, collector, contract, args.timeout_seconds)
+                _recover_current_session(client, repository, collector, contract, args.timeout_seconds)
+                locked_session = session_date
             bar = retry_operation(poller.poll_once, attempts=args.retries)
             repository.save_bars((bar,))
             _refresh_coverage(repository, contract, bar)
@@ -77,12 +77,25 @@ def main() -> int:
         repository.close()
 
 
-def _qualification_request(contract: QualifiedContract):
-    from datetime import datetime, timezone
-    from src.historical.models import HistoricalRequest
+def _select_live_contract(client, config, timeout_seconds: float) -> QualifiedContract:
+    epoch = client.request_server_time(timeout_seconds)
+    server_now = datetime.fromtimestamp(epoch, timezone.utc)
+    details = client.futures_chain(config.symbol, config.exchange, config.currency, 20_000, timeout_seconds)
+    return select_front_contract(details, server_now, config.roll_days_before_expiry)
 
-    now = datetime.now(timezone.utc)
-    return HistoricalRequest(contract, now, now, now, now, f"{DEFAULT_SESSION_CONFIG.bar_seconds} S")
+
+def _lock_session_contract(client, repository, config, timeout_seconds: float, with_session: bool = False):
+    epoch = client.request_server_time(timeout_seconds)
+    server_now = datetime.fromtimestamp(epoch, timezone.utc)
+    session_date = active_session_date(server_now)
+    if session_date is None:
+        raise RuntimeError("contract selection requires an active CME research session")
+    contract = repository.load_contract_selection(session_date.isoformat())
+    if contract is None:
+        details = client.futures_chain(config.symbol, config.exchange, config.currency, 20_000, timeout_seconds)
+        contract = select_front_contract(details, server_now, config.roll_days_before_expiry)
+        repository.save_contract_selection(session_date.isoformat(), contract, server_now)
+    return (contract, session_date) if with_session else contract
 
 
 def _refresh_coverage(repository, contract, bar) -> None:

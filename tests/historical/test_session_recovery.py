@@ -46,6 +46,18 @@ def test_coverage_is_partitioned_by_contract(tmp_path):
     repository.close()
 
 
+def test_contract_selection_is_persisted_per_session(tmp_path):
+    repository = HistoricalRepository(tmp_path / "history.sqlite")
+    selected_at = expected_bar_starts(SESSION_DATE)[0]
+    repository.save_contract_selection(SESSION_DATE.isoformat(), CONTRACT, selected_at)
+    row = repository._connection.execute(
+        "SELECT con_id, local_symbol, contract_month FROM contract_selections"
+    ).fetchone()
+    assert row == (1, "ESU6", "202609")
+    assert repository.load_contract_selection(SESSION_DATE.isoformat()) == CONTRACT
+    repository.close()
+
+
 def _bar(start):
     return HistoricalBar(
         CONTRACT, start, start.astimezone(ET), Decimal("6000"), Decimal("6001"),

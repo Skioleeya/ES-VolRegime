@@ -14,17 +14,18 @@ class IbkrConfig:
     symbol: str
     exchange: str
     currency: str
-    last_trade_date: str
+    last_trade_date: str | None
+    roll_days_before_expiry: int
 
     @classmethod
     def from_environment(cls) -> "IbkrConfig":
-        required = {"IBKR_HOST", "IBKR_PORT", "IBKR_CLIENT_ID", "ES_LAST_TRADE_DATE"}
+        required = {"IBKR_HOST", "IBKR_PORT", "IBKR_CLIENT_ID"}
         missing = sorted(name for name in required if not os.getenv(name))
         if missing:
             raise ValueError(f"Missing required environment variables: {', '.join(missing)}")
-        last_trade_date = os.environ["ES_LAST_TRADE_DATE"]
-        if last_trade_date.startswith("REPLACE_"):
-            raise ValueError("ES_LAST_TRADE_DATE must be set to the active ES contract month")
+        last_trade_date = os.getenv("ES_LAST_TRADE_DATE")
+        if last_trade_date and last_trade_date.startswith("REPLACE_"):
+            raise ValueError("ES_LAST_TRADE_DATE must not contain a placeholder")
         return cls(
             host=os.environ["IBKR_HOST"],
             port=int(os.environ["IBKR_PORT"]),
@@ -35,4 +36,5 @@ class IbkrConfig:
             exchange=os.getenv("ES_EXCHANGE", "CME"),
             currency=os.getenv("ES_CURRENCY", "USD"),
             last_trade_date=last_trade_date,
+            roll_days_before_expiry=int(os.getenv("ES_ROLL_DAYS_BEFORE_EXPIRY", "7")),
         )

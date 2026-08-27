@@ -132,3 +132,19 @@ class HistoricalClient(EWrapper, EClient):
         if len(self.contracts) != 1:
             raise ValueError(f"expected one qualified contract, received {len(self.contracts)}")
         return self.contracts[0].contract
+
+    def futures_chain(self, symbol: str, exchange: str, currency: str, request_id: int, timeout_seconds: float):
+        """Return IBKR contract details for matching futures, with no expiry guessed locally."""
+        self.contracts = []
+        self.contract_event.clear()
+        contract = Contract()
+        contract.symbol = symbol
+        contract.secType = "FUT"
+        contract.exchange = exchange
+        contract.currency = currency
+        self.reqContractDetails(request_id, contract)
+        if not self.contract_event.wait(timeout_seconds):
+            raise TimeoutError("futures chain contract details callback did not arrive")
+        if not self.contracts:
+            raise ValueError("IBKR returned no futures contracts")
+        return tuple(self.contracts)
