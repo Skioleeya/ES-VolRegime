@@ -5,17 +5,18 @@ import argparse
 from pathlib import Path
 import sys
 import threading
-from datetime import timedelta, time
+from datetime import date, datetime, timedelta, time, timezone
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from dotenv import load_dotenv
 
 from src.connectivity.config import IbkrConfig
-from src.historical import HistoricalRepository, QualifiedContract
+from src.historical import HistoricalRepository, QualifiedContract, recover_session
+from src.historical.coverage import is_trading_session
 from src.historical.client import HistoricalClient
 from src.historical.collector import HistoricalCollector
-from src.historical.polling import LatestBarPoller
+from src.historical.polling import LatestBarPoller, in_research_window
 
 
 def parse_args() -> argparse.Namespace:
@@ -46,7 +47,9 @@ def main() -> int:
             actual.conId, actual.localSymbol, config.last_trade_date,
             config.symbol, config.exchange, config.currency,
         )
-        poller = LatestBarPoller(client, HistoricalCollector(client), contract, args.timeout_seconds)
+        collector = HistoricalCollector(client)
+        poller = LatestBarPoller(client, collector, contract, args.timeout_seconds)
+        _recover_current_session(client, repository, collector, contract, args.timeout_seconds)
         if args.once:
             bar = poller.poll_once()
             repository.save_bars((bar,))
@@ -84,6 +87,24 @@ def _refresh_coverage(repository, contract, bar) -> None:
     session_date = local.date() + timedelta(days=1) if local.timetz().replace(tzinfo=None) >= time(18) else local.date()
     actual, missing = repository.refresh_coverage(session_date, contract)
     print(f"COVERAGE: session_date={session_date} actual={actual} missing={missing}", flush=True)
+
+
+def _recover_current_session(client, repository, collector, contract, timeout_seconds: float) -> None:
+    epoch = client.request_server_time(timeout_seconds)
+    server_now = datetime.fromtimestamp(epoch, timezone.utc)
+    local = server_now.astimezone(contract_zone(contract))
+    if not in_research_window(server_now):
+        return
+    session_date = local.date() + timedelta(days=1) if local.timetz().replace(tzinfo=None) >= time(18) else local.date()
+    if not is_trading_session(session_date):
+        return
+    result = recover_session(session_date, contract, repository, collector, server_now)
+    print(f"RECOVERY: session_date={result.session_date} requested={result.requested_bars} recovered={result.recovered_bars} remaining={result.remaining_bars}", flush=True)
+
+
+def contract_zone(contract):
+    from zoneinfo import ZoneInfo
+    return ZoneInfo(contract.time_zone)
 
 
 if __name__ == "__main__":

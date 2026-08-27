@@ -27,7 +27,9 @@ def recover_session(
     server_now: datetime,
 ) -> RecoveryResult:
     """Fetch and persist every currently missing completed bar in a session."""
-    expected = expected_bar_starts(session_date)
+    expected = tuple(value for value in expected_bar_starts(session_date) if value < server_now.astimezone(timezone.utc))
+    if not expected:
+        return RecoveryResult(session_date, 0, 0, 0)
     existing = _existing_starts(repository, contract, expected)
     missing = missing_bar_starts(session_date, existing)
     requests = build_gap_requests(contract, missing)
