@@ -4,9 +4,9 @@ CHANGE-ID: N/A:no OpenSpec change
 PROPOSAL-PATH: N/A:no proposal
 TASKS-PATH: N/A:no tasks file
 STARTUP-PROOF: 2026-08-27 initial repository push session
-CHANGED-PATHS: all non-ignored repository files in initial commit
+CHANGED-PATHS: all non-ignored repository files in commit f1f3b9a
 VALIDATION-SUMMARY: 68 tests passed
-COMMAND-EVIDENCE: TMPDIR=/tmp PYTEST_ADDOPTS='' ./.venv/bin/pytest tests -q -> 68 passed in 1.59s; git diff --check -> clean
+COMMAND-EVIDENCE: TMPDIR=/tmp PYTEST_ADDOPTS='' ./.venv/bin/pytest tests -q -> 68 passed in 1.59s; git diff --check -> clean; git push -u origin master -> success; git status --short --branch -> clean and up to date
 ACCEPTANCE-BUNDLE: N/A:no acceptance bundle
 ACCEPTANCE-MODE: repository initial push
 ACCEPTANCE-RESULT: complete after push
