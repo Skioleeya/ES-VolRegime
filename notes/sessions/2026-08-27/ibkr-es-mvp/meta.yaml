@@ -1,0 +1,8 @@
+task_id: ibkr-es-mvp
+date: 2026-08-27
+status: implementation_complete_live_test_blocked
+scope: Non-trading Linux IBKR connectivity and ES market-data MVP
+validation_commands:
+  - python3 -m compileall -q src scripts
+  - python3 -m pytest -q
+  - python3 scripts/verify_ibkr_es.py

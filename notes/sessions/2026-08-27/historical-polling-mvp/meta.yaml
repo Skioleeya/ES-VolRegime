@@ -1,0 +1,9 @@
+task_id: historical-polling-mvp
+date: 2026-08-27
+status: implemented_pending_live_one_shot
+scope: server_time_calibrated_single_completed_bar_polling
+validation_commands:
+  - python3 -m py_compile scripts/poll_ibkr_latest.py
+  - TMPDIR=/tmp .venv/bin/pytest -q tests
+  - python3 -m compileall -q src tests
+  - git diff --check

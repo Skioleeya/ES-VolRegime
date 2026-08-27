@@ -1,0 +1,7 @@
+task_id: format-whitepaper
+date: 2026-08-27
+status: completed
+scope: Markdown formatting of 总纲.md
+validation_commands:
+  - wc -l 总纲.md
+  - git diff --check (not applicable: no Git repository)
