@@ -15,7 +15,7 @@ class IbkrConfig:
     exchange: str
     currency: str
     last_trade_date: str | None
-    roll_days_before_expiry: int
+    roll_mode: str
 
     @classmethod
     def from_environment(cls) -> "IbkrConfig":
@@ -26,6 +26,9 @@ class IbkrConfig:
         last_trade_date = os.getenv("ES_LAST_TRADE_DATE")
         if last_trade_date and last_trade_date.startswith("REPLACE_"):
             raise ValueError("ES_LAST_TRADE_DATE must not contain a placeholder")
+        roll_mode = os.getenv("ES_ROLL_MODE", "cme_equity_lead_month")
+        if roll_mode != "cme_equity_lead_month":
+            raise ValueError(f"unsupported ES_ROLL_MODE: {roll_mode}")
         return cls(
             host=os.environ["IBKR_HOST"],
             port=int(os.environ["IBKR_PORT"]),
@@ -36,5 +39,5 @@ class IbkrConfig:
             exchange=os.getenv("ES_EXCHANGE", "CME"),
             currency=os.getenv("ES_CURRENCY", "USD"),
             last_trade_date=last_trade_date,
-            roll_days_before_expiry=int(os.getenv("ES_ROLL_DAYS_BEFORE_EXPIRY", "7")),
+            roll_mode=roll_mode,
         )

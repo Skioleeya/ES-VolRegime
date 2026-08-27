@@ -34,3 +34,12 @@ def test_config_allows_automatic_contract_selection(monkeypatch):
     monkeypatch.setenv("IBKR_CLIENT_ID", "901")
     monkeypatch.delenv("ES_LAST_TRADE_DATE", raising=False)
     assert IbkrConfig.from_environment().last_trade_date is None
+
+
+def test_config_rejects_unknown_roll_mode(monkeypatch):
+    monkeypatch.setenv("IBKR_HOST", "127.0.0.1")
+    monkeypatch.setenv("IBKR_PORT", "4002")
+    monkeypatch.setenv("IBKR_CLIENT_ID", "901")
+    monkeypatch.setenv("ES_ROLL_MODE", "days_before_expiry")
+    with pytest.raises(ValueError, match="unsupported ES_ROLL_MODE"):
+        IbkrConfig.from_environment()

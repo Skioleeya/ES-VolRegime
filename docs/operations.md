@@ -13,7 +13,7 @@
    configuration source. Missing or invalid values stop the process at startup.
 6. The poller resolves and locks the active ES future through IBKR at the first
    bar of each research session. `ES_LAST_TRADE_DATE` is no longer required for
-   the poller; configure `ES_ROLL_DAYS_BEFORE_EXPIRY` instead.
+   the poller; configure `ES_ROLL_MODE=cme_equity_lead_month` instead.
 
 ## One-Cycle Acceptance
 
