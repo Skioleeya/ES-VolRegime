@@ -1,6 +1,8 @@
 """Select a live ES future from IBKR-provided contract details."""
 
-from datetime import date, datetime, time, timedelta
+import csv
+from datetime import date, datetime, timedelta
+from pathlib import Path
 from typing import Protocol
 
 from .models import QualifiedContract
@@ -16,36 +18,58 @@ def select_cme_equity_lead_contract(
     details: tuple[ContractDetail, ...],
     as_of: datetime,
     session_config: SessionConfig = DEFAULT_SESSION_CONFIG,
+    roll_calendar: "CmeEquityRollCalendar | None" = None,
 ) -> QualifiedContract:
     """Choose CME's lead month, effective at the prior Sunday session start."""
     if as_of.tzinfo is None or as_of.utcoffset() is None:
         raise ValueError("as_of must be timezone-aware")
     local = as_of.astimezone(session_config.timezone)
-    candidates = []
-    for detail in details:
-        expiry = _expiry(detail.realExpirationDate)
-        contract = detail.contract
-        if local < cme_equity_roll_start(expiry, session_config):
-            candidates.append((expiry, contract))
-    if not candidates:
-        raise ValueError("IBKR returned no eligible CME equity futures contract")
-    expiry, selected = min(candidates, key=lambda item: (item[0], item[1].conId))
-    return QualifiedContract(
-        selected.conId, selected.localSymbol, selected.lastTradeDateOrContractMonth,
-        selected.symbol, selected.exchange, selected.currency,
+    calendar = roll_calendar or CmeEquityRollCalendar.load()
+    candidates = sorted(
+        ((_expiry(detail.realExpirationDate), detail.contract) for detail in details),
+        key=lambda item: (item[0], item[1].conId),
     )
+    for expiry, candidate in candidates:
+        if local < cme_equity_roll_start(expiry, calendar, session_config):
+            return QualifiedContract(
+                candidate.conId, candidate.localSymbol, candidate.lastTradeDateOrContractMonth,
+                candidate.symbol, candidate.exchange, candidate.currency,
+            )
+    raise ValueError("IBKR returned no eligible CME equity futures contract")
 
 
-def cme_equity_roll_start(expiration: date, session_config: SessionConfig = DEFAULT_SESSION_CONFIG) -> datetime:
-    """Return the Sunday session start before CME's Monday lead-month roll date."""
-    third_friday = _third_friday(expiration.year, expiration.month)
-    monday = third_friday - timedelta(days=4)
-    return datetime.combine(monday - timedelta(days=1), session_config.session_start, session_config.timezone)
+class CmeEquityRollCalendar:
+    """Versioned CME-published U.S. Equity Index futures roll dates."""
+
+    def __init__(self, roll_dates: dict[date, date]) -> None:
+        self._roll_dates = roll_dates
+
+    @classmethod
+    def load(cls, path: Path | None = None) -> "CmeEquityRollCalendar":
+        source = path or Path(__file__).resolve().parents[2] / "config" / "cme_equity_roll_dates.csv"
+        with source.open(newline="") as handle:
+            rows = csv.DictReader(handle)
+            dates = {date.fromisoformat(row["expiration_date"]): date.fromisoformat(row["roll_date"]) for row in rows}
+        if not dates:
+            raise ValueError("CME equity roll calendar is empty")
+        return cls(dates)
+
+    def roll_date(self, expiration: date) -> date:
+        try:
+            return self._roll_dates[expiration]
+        except KeyError as exc:
+            raise ValueError(f"CME equity roll date unavailable for expiration {expiration}") from exc
 
 
-def _third_friday(year: int, month: int) -> date:
-    first = date(year, month, 1)
-    return first + timedelta(days=(4 - first.weekday()) % 7 + 14)
+def cme_equity_roll_start(
+    expiration: date,
+    roll_calendar: CmeEquityRollCalendar,
+    session_config: SessionConfig = DEFAULT_SESSION_CONFIG,
+) -> datetime:
+    """Return session start before the official CME-published roll date."""
+    return datetime.combine(roll_calendar.roll_date(expiration) - timedelta(days=1), session_config.session_start, session_config.timezone)
+
+
 
 
 def _expiry(value: str) -> date:
