@@ -25,5 +25,13 @@ class SessionConfig:
         if self.minimum_history_samples < 1:
             raise ValueError("minimum_history_samples must be positive")
 
+    @property
+    def bar_seconds(self) -> int:
+        return self.bar_minutes * 60
+
+    @property
+    def bar_size(self) -> str:
+        return f"{self.bar_minutes} mins"
+
 
 DEFAULT_SESSION_CONFIG = SessionConfig()

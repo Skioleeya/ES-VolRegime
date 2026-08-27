@@ -8,7 +8,7 @@ from .models import HistoricalBar
 from src.config import DEFAULT_SESSION_CONFIG, SessionConfig
 
 ET = ZoneInfo("America/New_York")
-FIVE_MINUTES = timedelta(minutes=5)
+FIVE_MINUTES = timedelta(minutes=DEFAULT_SESSION_CONFIG.bar_minutes)
 OVERNIGHT_START = DEFAULT_SESSION_CONFIG.session_start
 PREMARKET_START = DEFAULT_SESSION_CONFIG.overnight_end
 CASH_START = time(9, 30)

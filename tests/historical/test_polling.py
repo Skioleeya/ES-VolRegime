@@ -2,6 +2,7 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
+from src.config import SessionConfig
 from src.historical import QualifiedContract
 from src.historical.polling import build_latest_bar_request, completed_boundary, next_poll_at
 
@@ -27,3 +28,11 @@ def test_poll_delay_must_protect_bar_finalization():
     now = datetime(2026, 8, 27, 13, 42, 18, tzinfo=UTC)
     with pytest.raises(ValueError, match="between 5 and 10"):
         next_poll_at(now, timedelta(seconds=1))
+
+
+def test_request_uses_configured_bar_interval():
+    config = SessionConfig(bar_minutes=10)
+    now = datetime(2026, 8, 27, 13, 42, 18, tzinfo=UTC)
+    request = build_latest_bar_request(CONTRACT, now, config)
+    assert request.duration_str == "600 S"
+    assert request.start_utc == datetime(2026, 8, 27, 13, 30, tzinfo=UTC)

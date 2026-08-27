@@ -3,6 +3,7 @@
 from dataclasses import dataclass
 from datetime import date, datetime
 from decimal import Decimal
+from src.config import DEFAULT_SESSION_CONFIG
 
 
 @dataclass(frozen=True)
@@ -28,7 +29,7 @@ class HistoricalRequest:
     start_et: datetime
     end_et: datetime
     duration_str: str
-    bar_size: str = "5 mins"
+    bar_size: str = DEFAULT_SESSION_CONFIG.bar_size
     what_to_show: str = "TRADES"
     use_rth: int = 0
     format_date: int = 2
@@ -61,4 +62,3 @@ def ensure_date_order(start: date, end: date) -> None:
 def ensure_aware(value: datetime, field_name: str) -> None:
     if value.tzinfo is None or value.utcoffset() is None:
         raise ValueError(f"{field_name} must be timezone-aware")
-

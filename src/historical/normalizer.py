@@ -8,6 +8,7 @@ from zoneinfo import ZoneInfo
 from .client import RawHistoricalBar
 from .errors import HistoricalError
 from .models import HistoricalBar, QualifiedContract
+from src.config import DEFAULT_SESSION_CONFIG, SessionConfig
 
 ET = ZoneInfo("America/New_York")
 UTC = timezone.utc
@@ -17,14 +18,15 @@ def normalize_completed_bar(
     raw: RawHistoricalBar,
     contract: QualifiedContract,
     as_of_utc: datetime,
+    session_config: SessionConfig = DEFAULT_SESSION_CONFIG,
 ) -> HistoricalBar:
     """Convert one epoch callback into a validated completed bar."""
     _ensure_utc(as_of_utc, "as_of_utc")
     if raw.request_id <= 0:
         raise HistoricalError("raw bar request id must be positive")
     bar_start_utc = datetime.fromtimestamp(raw.date_value, UTC)
-    bar_end_utc = bar_start_utc.timestamp() + 300
-    if bar_start_utc.timestamp() % 300 != 0:
+    bar_end_utc = bar_start_utc.timestamp() + session_config.bar_seconds
+    if bar_start_utc.timestamp() % session_config.bar_seconds != 0:
         raise HistoricalError("bar timestamp is not aligned to a 5-minute boundary")
     if bar_end_utc > as_of_utc.timestamp():
         raise HistoricalError("bar is not complete at the request as-of time")
