@@ -5,15 +5,16 @@
 1. Start exactly one Paper IB Gateway session for the configured account.
 2. Confirm API access is enabled and the configured port is reachable from the
    Linux process.
-3. Keep `.env` outside version control. It must contain the explicitly
-   qualified active contract month, for example `ES_LAST_TRADE_DATE=202609`.
+3. Keep `.env` outside version control. `ES_LAST_TRADE_DATE` is optional for
+   the diagnostic probe; the poller selects the contract automatically.
 4. Do not run another TWS/Gateway session for the same account from a second
    IP. IBKR may reject the request with error 162.
 5. Keep `config/session.toml` under version control as the sole research-session
    configuration source. Missing or invalid values stop the process at startup.
 6. The poller resolves and locks the active ES future through IBKR at the first
-   bar of each research session. `ES_LAST_TRADE_DATE` is no longer required for
-   the poller; configure `ES_ROLL_MODE=cme_equity_lead_month` instead.
+   bar of each research session. `ES_LAST_TRADE_DATE` is not used by the
+   poller; `config/session.toml` is the only roll-policy configuration source.
+   See `docs/contract-roll-policy.md` for its explicit failure conditions.
 
 ## One-Cycle Acceptance
 

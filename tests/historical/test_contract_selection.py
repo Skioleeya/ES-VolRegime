@@ -4,7 +4,7 @@ from zoneinfo import ZoneInfo
 
 import pytest
 
-from src.historical.contract_selection import CmeEquityRollCalendar, cme_equity_roll_start, select_cme_equity_lead_contract
+from src.historical.contract_selection import calendar_rule_roll_date, calendar_rule_roll_start, select_cme_equity_lead_contract
 
 
 @dataclass
@@ -20,15 +20,28 @@ class Contract:
 @dataclass
 class Detail:
     contract: Contract
-    realExpirationDate: str
+    realExpirationDate: str = ""
 
 
-def test_cme_roll_starts_sunday_before_expiration_week():
-    calendar = CmeEquityRollCalendar.load()
-    assert cme_equity_roll_start(date(2026, 9, 18), calendar) == datetime(2026, 9, 13, 18, tzinfo=ZoneInfo("America/New_York"))
+def test_calendar_rule_starts_at_sunday_session_before_third_friday():
+    assert calendar_rule_roll_start(date(2026, 9, 1)) == datetime(2026, 9, 13, 18, tzinfo=ZoneInfo("America/New_York"))
 
 
-def test_selects_next_contract_at_cme_lead_month_roll():
+def test_calendar_rule_preserves_18_et_through_spring_dst_transition():
+    assert calendar_rule_roll_start(date(2027, 3, 1)) == datetime(2027, 3, 14, 18, tzinfo=ZoneInfo("America/New_York"))
+
+
+def test_calendar_rule_ignores_holiday_adjusted_real_expiration_date():
+    assert calendar_rule_roll_date(date(2026, 6, 1)) == date(2026, 6, 15)
+    details = (
+        Detail(Contract(1, "ESM6", "202606"), "20260618"),
+        Detail(Contract(2, "ESU6", "202609"), "20260918"),
+    )
+    result = select_cme_equity_lead_contract(details, datetime(2026, 6, 14, 22, tzinfo=timezone.utc))
+    assert result.local_symbol == "ESU6"
+
+
+def test_selects_next_contract_at_calendar_rule_roll():
     details = (
         Detail(Contract(1, "ESU6", "202609"), "20260918"),
         Detail(Contract(2, "ESZ6", "202612"), "20261218"),
@@ -39,22 +52,17 @@ def test_selects_next_contract_at_cme_lead_month_roll():
     assert result.local_symbol == "ESZ6"
 
 
-def test_selection_fails_without_eligible_contract():
+def test_selection_fails_without_next_contract_after_roll():
     details = (Detail(Contract(1, "ESU6", "202609"), "20260918"),)
-    with pytest.raises(ValueError, match="no eligible CME equity"):
+    with pytest.raises(ValueError, match="no eligible ES futures contract"):
         select_cme_equity_lead_contract(details, datetime(2026, 9, 13, 22, tzinfo=timezone.utc))
 
 
-def test_selection_fails_when_official_roll_date_is_unavailable():
-    details = (Detail(Contract(1, "ESH9", "202903"), "20290316"),)
-    with pytest.raises(ValueError, match="roll date unavailable"):
-        select_cme_equity_lead_contract(details, datetime(2029, 3, 1, tzinfo=timezone.utc))
+def test_selection_fails_for_non_quarterly_contract_month():
+    details = (Detail(Contract(1, "ESN6", "202607"), "20260717"),)
+    with pytest.raises(ValueError, match="non-quarterly"):
+        select_cme_equity_lead_contract(details, datetime(2026, 7, 1, tzinfo=timezone.utc))
 
 
-def test_unneeded_far_contract_does_not_require_a_roll_date():
-    details = (
-        Detail(Contract(1, "ESU6", "202609"), "20260918"),
-        Detail(Contract(2, "ESH9", "202903"), "20290316"),
-    )
-    result = select_cme_equity_lead_contract(details, datetime(2026, 8, 27, tzinfo=timezone.utc))
-    assert result.local_symbol == "ESU6"
+def test_calendar_rule_has_no_end_date():
+    assert calendar_rule_roll_date(date(2037, 12, 1)) == date(2037, 12, 14)

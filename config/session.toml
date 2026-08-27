@@ -5,3 +5,9 @@ premarket_end = "09:30"
 session_end = "12:00"
 bar_minutes = 5
 minimum_history_samples = 20
+
+[roll_policy]
+quarterly_months = [3, 6, 9, 12]
+reference_weekday = "friday"
+reference_occurrence = 3
+roll_weekday = "monday"

@@ -9,7 +9,7 @@ from .coverage import expected_bar_starts, is_trading_session, missing_bar_start
 from .recovery import build_gap_requests
 from .session_recovery import RecoveryResult, recover_session
 from .retry import retry_operation
-from .contract_selection import CmeEquityRollCalendar, cme_equity_roll_start, select_cme_equity_lead_contract
+from .contract_selection import calendar_rule_roll_date, calendar_rule_roll_start, select_cme_equity_lead_contract
 
 __all__ = [
     "HistoricalBar",
@@ -34,7 +34,7 @@ __all__ = [
     "RecoveryResult",
     "recover_session",
     "retry_operation",
-    "cme_equity_roll_start",
-    "CmeEquityRollCalendar",
+    "calendar_rule_roll_date",
+    "calendar_rule_roll_start",
     "select_cme_equity_lead_contract",
 ]

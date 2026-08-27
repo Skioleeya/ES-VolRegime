@@ -81,7 +81,6 @@ def _select_live_contract(client, config, timeout_seconds: float) -> QualifiedCo
     epoch = client.request_server_time(timeout_seconds)
     server_now = datetime.fromtimestamp(epoch, timezone.utc)
     details = client.futures_chain(config.symbol, config.exchange, config.currency, 20_000, timeout_seconds)
-    _require_cme_equity_roll_mode(config)
     return select_cme_equity_lead_contract(details, server_now)
 
 
@@ -94,7 +93,6 @@ def _lock_session_contract(client, repository, config, timeout_seconds: float, w
     contract = repository.load_contract_selection(session_date.isoformat())
     if contract is None:
         details = client.futures_chain(config.symbol, config.exchange, config.currency, 20_000, timeout_seconds)
-        _require_cme_equity_roll_mode(config)
         contract = select_cme_equity_lead_contract(details, server_now)
         repository.save_contract_selection(session_date.isoformat(), contract, server_now)
     return (contract, session_date) if with_session else contract
@@ -124,8 +122,5 @@ def _require_active_session(client, timeout_seconds: float) -> None:
         raise RuntimeError("--once requires an active CME research session")
 
 
-def _require_cme_equity_roll_mode(config) -> None:
-    if config.roll_mode != "cme_equity_lead_month":
-        raise ValueError(f"unsupported ES_ROLL_MODE: {config.roll_mode}")
 if __name__ == "__main__":
     raise SystemExit(main())

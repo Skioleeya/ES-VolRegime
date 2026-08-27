@@ -1,0 +1,7 @@
+task_id: calendar-rule-roll
+date: 2026-08-27
+status: complete
+scope: configuration-driven automatic ES futures roll without CME calendar retrieval
+validation_commands:
+  - TMPDIR=/tmp ./.venv/bin/pytest tests -q
+  - git diff --check
