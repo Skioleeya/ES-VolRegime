@@ -3,6 +3,7 @@
 from datetime import date, datetime, timedelta, timezone
 
 from src.config import DEFAULT_SESSION_CONFIG, SessionConfig
+import pandas_market_calendars as market_calendars
 
 
 def session_window(session_date: date, config: SessionConfig = DEFAULT_SESSION_CONFIG) -> tuple[datetime, datetime]:
@@ -21,3 +22,20 @@ def expected_bar_starts(session_date: date, config: SessionConfig = DEFAULT_SESS
 def missing_bar_starts(session_date: date, actual: tuple[datetime, ...], config: SessionConfig = DEFAULT_SESSION_CONFIG) -> tuple[datetime, ...]:
     expected = set(expected_bar_starts(session_date, config))
     return tuple(value for value in sorted(expected - set(actual)))
+
+
+def is_trading_session(session_date: date) -> bool:
+    """Return whether CME Equity lists the labelled session date."""
+    calendar = market_calendars.get_calendar("CME_Equity")
+    schedule = calendar.schedule(session_date, session_date)
+    return not schedule.empty
+
+
+def next_trading_session(session_date: date) -> date:
+    """Return the first CME session on or after the supplied date."""
+    calendar = market_calendars.get_calendar("CME_Equity")
+    end = session_date + timedelta(days=14)
+    schedule = calendar.schedule(session_date, end)
+    if schedule.empty:
+        raise ValueError("no CME Equity session found in two-week search window")
+    return schedule.index[0].date()
