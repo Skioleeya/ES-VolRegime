@@ -10,6 +10,7 @@ from .errors import HistoricalError
 from .models import HistoricalBar, HistoricalRequest, QualifiedContract
 from .normalizer import normalize_completed_bar
 from src.config import DEFAULT_SESSION_CONFIG, SessionConfig
+from .coverage import is_trading_session, next_trading_session
 
 UTC = timezone.utc
 BAR_LENGTH = timedelta(minutes=5)
@@ -24,12 +25,23 @@ def in_research_window(server_now: datetime, config: SessionConfig = DEFAULT_SES
     return clock >= config.session_start or clock < config.session_end
 
 
+def active_session_date(server_now: datetime, config: SessionConfig = DEFAULT_SESSION_CONFIG):
+    """Return the CME session label when the instant is collectable, else None."""
+    if not in_research_window(server_now, config):
+        return None
+    local = server_now.astimezone(config.timezone)
+    clock = local.timetz().replace(tzinfo=None)
+    session_date = local.date() + timedelta(days=1) if clock >= config.session_start else local.date()
+    return session_date if is_trading_session(session_date) else None
+
+
 def next_window_start(server_now: datetime, config: SessionConfig = DEFAULT_SESSION_CONFIG) -> datetime:
     """Return the next configured evening session start in UTC."""
     _ensure_utc(server_now)
     local = server_now.astimezone(config.timezone)
     clock = local.timetz().replace(tzinfo=None)
     target_date = local.date() if clock < config.session_end else local.date() + timedelta(days=1)
+    target_date = next_trading_session(target_date)
     target = datetime.combine(target_date, config.session_start, config.timezone)
     if target.astimezone(UTC) <= server_now:
         target = datetime.combine(target_date + timedelta(days=1), config.session_start, config.timezone)
@@ -91,7 +103,7 @@ class LatestBarPoller:
         """Wait using a fresh server-time calibration and return the poll time."""
         epoch = self.client.request_server_time(self.timeout_seconds)
         server_now = datetime.fromtimestamp(epoch, UTC)
-        if not in_research_window(server_now, config):
+        if active_session_date(server_now, config) is None:
             poll_at = next_window_start(server_now, config) + POLL_DELAY
         else:
             poll_at = next_poll_at(server_now)
