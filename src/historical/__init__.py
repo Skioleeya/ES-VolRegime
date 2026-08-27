@@ -7,6 +7,7 @@ from .request_plan import build_request_plan
 from .polling import LatestBarPoller, build_latest_bar_request, completed_boundary, in_research_window, next_poll_at, next_window_start
 from .coverage import expected_bar_starts, is_trading_session, missing_bar_starts, next_trading_session, session_window
 from .recovery import build_gap_requests
+from .session_recovery import RecoveryResult, recover_session
 
 __all__ = [
     "HistoricalBar",
@@ -27,4 +28,6 @@ __all__ = [
     "is_trading_session",
     "next_trading_session",
     "build_gap_requests",
+    "RecoveryResult",
+    "recover_session",
 ]
